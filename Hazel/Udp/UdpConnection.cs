@@ -125,42 +125,54 @@ namespace Hazel.Udp
         protected internal virtual void HandleReceive(MessageReader message, int bytesReceived)
         {
             ushort id;
-            switch (message.Buffer[0])
+            byte op = message.Buffer[0];
+            if ((op & (byte)UdpSendOption.Control) == 0)
             {
-                //Handle reliable receives
-                case (byte)SendOption.Reliable:
-                    ReliableMessageReceive(message, bytesReceived);
-                    break;
+                // ProcessReliableReceive()
+                // if ((op & (byte)UdpSendOption.Fragment) != 0) {
+                //     FragmentedMessageReceive(message.Buffer,);
+                // }
+            }
+            else
+            {
+                switch (message.Buffer[0] & (byte)UdpSendOption.Data)
+                {
+                    //Handle reliable receives
+                    // case (byte)SendOption.Reliable:
+                    // ReliableMessageReceive(message, bytesReceived);
+                    //     break;
 
-                //Handle acknowledgments
-                case (byte)UdpSendOption.Acknowledgement:
-                    AcknowledgementMessageReceive(message.Buffer, bytesReceived);
-                    message.Recycle();
-                    break;
+                    //Treat everything else as unreliable
+                    // default:
+                    //     InvokeDataReceived(SendOption.None, message, 1, bytesReceived);
+                    //     Statistics.LogUnreliableReceive(bytesReceived - 1, bytesReceived);
+                    //     break;
 
-                //We need to acknowledge hello and ping messages but dont want to invoke any events!
-                case (byte)UdpSendOption.Ping:
-                    ProcessReliableReceive(message.Buffer, 1, out id);
-                    Statistics.LogHelloReceive(bytesReceived);
-                    message.Recycle();
-                    break;
-                case (byte)UdpSendOption.Hello:
-                    ProcessReliableReceive(message.Buffer, 1, out id);
-                    Statistics.LogHelloReceive(bytesReceived);
-                    break;
+                    //Handle acknowledgments
+                    case (byte)UdpSendOption.Acknowledgement:
+                        AcknowledgementMessageReceive(message.Buffer, bytesReceived);
+                        message.Recycle();
+                        break;
 
-                case (byte)UdpSendOption.Disconnect:
-                    message.Offset = 1;
-                    message.Position = 0;
-                    DisconnectRemote("The remote sent a disconnect request", message);
-                    message.Recycle();
-                    break;
-                    
-                //Treat everything else as unreliable
-                default:
-                    InvokeDataReceived(SendOption.None, message, 1, bytesReceived);
-                    Statistics.LogUnreliableReceive(bytesReceived - 1, bytesReceived);
-                    break;
+                    //We need to acknowledge hello and ping messages but dont want to invoke any events!
+                    case (byte)UdpSendOption.Ping:
+                        ProcessReliableReceive(message.Buffer, 1, out id);
+                        Statistics.LogPingReceive(bytesReceived);
+                        message.Recycle();
+                        break;
+
+                    case (byte)UdpSendOption.Hello:
+                        ProcessReliableReceive(message.Buffer, 1, out id);
+                        Statistics.LogHelloReceive(bytesReceived);
+                        break;
+
+                    case (byte)UdpSendOption.Disconnect:
+                        message.Offset = 1;
+                        message.Position = 0;
+                        DisconnectRemote("The remote sent a disconnect request", message);
+                        message.Recycle();
+                        break;
+                }
             }
         }
 
